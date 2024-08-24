@@ -6,7 +6,6 @@ import (
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/joho/godotenv"
 )
 
 type config struct {
@@ -16,10 +15,10 @@ type config struct {
 
 func main() {
 	// Load environment variables from .env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	// err := godotenv.Load()
+	// if err != nil {
+	// 	log.Fatal("Error loading .env file")
+	// }
 	data_source_name := os.Getenv("AWS_DATABASE_URL")
 	port := os.Getenv("PORT")
 	db_name := os.Getenv("DATABASE_NAME")
