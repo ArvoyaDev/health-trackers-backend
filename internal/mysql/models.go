@@ -10,11 +10,12 @@ type HeartburnLog struct {
 	Severity string `json:"severity"`
 	Symptoms string `json:"symptoms"`
 	LastMeal string `json:"last_meal"`
+	Password string `json:"password"`
 }
 
 func (d *Database) CreateHeartburnLog(log HeartburnLog) error {
-	query := `INSERT INTO logs (severity, symptoms, last_meal) VALUES (?, ?, ?)`
-	_, err := d.mysql.Exec(query, log.Severity, log.Symptoms, log.LastMeal)
+	query := `INSERT INTO logs (severity, symptoms, last_meal, password) VALUES (?, ?, ?, ?)`
+	_, err := d.mysql.Exec(query, log.Severity, log.Symptoms, log.LastMeal, log.Password)
 	if err != nil {
 		return fmt.Errorf("error inserting log: %w", err)
 	}
@@ -23,7 +24,7 @@ func (d *Database) CreateHeartburnLog(log HeartburnLog) error {
 
 func (d *Database) GetHeartburnLogs() ([]HeartburnLog, error) {
 	rows, err := d.mysql.Query(
-		`SELECT id, log_time, severity, symptoms, last_meal FROM logs`,
+		`SELECT id, log_time, severity, symptoms, last_meal FROM logs WHERE password = "sriswamisatchidananda" ORDER BY log_time DESC`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error querying logs: %w", err)
