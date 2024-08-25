@@ -51,6 +51,7 @@ func main() {
 	cognitoMux.HandleFunc("POST /signup", config.signUp)
 	cognitoMux.HandleFunc("POST /confirm-signup", config.ConfirmSignup)
 	cognitoMux.HandleFunc("POST /request-verification-code", config.RequestVerificationCode)
+	cognitoMux.HandleFunc("POST /sign-in", config.SignIn)
 
 	// Apply CORS middleware
 	corsMux := corsMiddleware(mainMux)

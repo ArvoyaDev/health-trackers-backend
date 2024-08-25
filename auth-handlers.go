@@ -113,4 +113,67 @@ func (c *config) RequestVerificationCode(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Verification code resent successfully"))
+}
+
+type SignInResponse struct {
+	AccessToken  *string `json:"accessToken"`
+	ExpiresIn    int32   `json:"expiresIn"`
+	TokenType    *string `json:"tokenType"`
+	IDToken      *string `json:"idToken"`
+	RefreshToken *string `json:"refreshToken"`
+}
+
+func (c *config) SignIn(w http.ResponseWriter, r *http.Request) {
+	var user User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	secretHash, err := auth.CalculateSecretHash(
+		c.AuthClient.AppClientID,
+		os.Getenv("COGNITO_CLIENT_SECRET"),
+		user.Username,
+	)
+	if err != nil {
+		http.Error(w, "Failed to calculate secret hash", http.StatusInternalServerError)
+		log.Printf("Failed to calculate secret hash: %v", err)
+		return
+	}
+	obj, err := c.AuthClient.AdminInitiateAuth(
+		context.TODO(),
+		&cognitoidentityprovider.AdminInitiateAuthInput{
+			AuthFlow:   "ADMIN_USER_PASSWORD_AUTH",
+			ClientId:   &c.AuthClient.AppClientID,
+			UserPoolId: &c.AuthClient.UserPoolID,
+			AuthParameters: map[string]string{
+				"USERNAME":    user.Username,
+				"PASSWORD":    user.Password,
+				"SECRET_HASH": secretHash,
+			},
+		},
+	)
+	if err != nil {
+		http.Error(w, "Failed to sign in", http.StatusInternalServerError)
+		log.Printf("Failed to sign in: %v", err)
+		return
+	}
+
+	response := &SignInResponse{
+		AccessToken:  obj.AuthenticationResult.AccessToken,
+		ExpiresIn:    obj.AuthenticationResult.ExpiresIn,
+		TokenType:    obj.AuthenticationResult.TokenType,
+		IDToken:      obj.AuthenticationResult.IdToken,
+		RefreshToken: obj.AuthenticationResult.RefreshToken,
+	}
+
+	jsonData, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, "Failed to sign in", http.StatusInternalServerError)
+		log.Printf("Failed to sign in: %v", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(jsonData))
 }

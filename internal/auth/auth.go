@@ -20,6 +20,7 @@ import (
 
 type CognitoClient struct {
 	AppClientID string
+	UserPoolID  string
 	*cip.Client
 }
 
@@ -32,6 +33,7 @@ func Init() *CognitoClient {
 	return &CognitoClient{
 		AppClientID: os.Getenv("COGNITO_APP_CLIENT_ID"),
 		Client:      cip.NewFromConfig(cfg),
+		UserPoolID:  os.Getenv("COGNITO_USER_POOL_ID"),
 	}
 }
 
