@@ -92,7 +92,7 @@ func (c *CognitoClient) ConfirmSignup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	sceretHash, err := CalculateSecretHash(
+	secretHash, err := CalculateSecretHash(
 		c.AppClientID,
 		os.Getenv("COGNITO_CLIENT_SECRET"),
 		req.Username,
@@ -104,10 +104,10 @@ func (c *CognitoClient) ConfirmSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = c.Client.ConfirmSignUp(context.TODO(), &cip.ConfirmSignUpInput{
-		ClientId:         &c.AppClientID,
-		Username:         &req.Username,
-		SecretHash:       &sceretHash,
-		ConfirmationCode: &req.ConfirmationCode,
+		ClientId:         aws.String(c.AppClientID),
+		Username:         aws.String(req.Username),
+		SecretHash:       aws.String(secretHash),
+		ConfirmationCode: aws.String(req.ConfirmationCode),
 	})
 	if err != nil {
 		http.Error(w, "Failed to confirm signup", http.StatusInternalServerError)

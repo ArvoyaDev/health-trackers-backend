@@ -4,10 +4,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/ArvoyaDev/symptom-tracker-backend/internal/auth"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"golang.org/x/time/rate"
 )
 
@@ -38,10 +41,12 @@ func main() {
 	// DB Mux & routes
 	dbMux := http.NewServeMux()
 
-	mainMux.Handle("/db/", http.StripPrefix("/db", dbMux))
-
 	dbMux.HandleFunc("GET /logs", config.getHeartburnLogs)
 	dbMux.HandleFunc("POST /logs", config.createHeartburnLog)
+
+	authMux := TokenAuthMiddleware(dbMux)
+
+	mainMux.Handle("/db/", http.StripPrefix("/db", authMux))
 
 	// Cognito Mux & routes
 	cognitoMux := http.NewServeMux()
@@ -97,4 +102,47 @@ func rateLimitMiddleware(next http.Handler) http.HandlerFunc {
 
 		next.ServeHTTP(w, r)
 	}
+}
+
+func TokenAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+			return
+		}
+
+		splitAuthHeader := strings.Split(authHeader, " ")
+		if len(splitAuthHeader) != 2 || splitAuthHeader[0] != "Bearer" {
+			http.Error(w, "Invalid authorization header", http.StatusBadRequest)
+			return
+		}
+
+		// Fetch JWK set
+		keySet, err := jwk.Fetch(r.Context(), os.Getenv("AWS_TOKEN_SIGNING_KEY"))
+		if err != nil {
+			http.Error(w, "Error fetching keys", http.StatusInternalServerError)
+			return
+		}
+
+		// Parse and validate token
+		token, err := jwt.Parse(
+			[]byte(splitAuthHeader[1]),
+			jwt.WithKeySet(keySet),
+			jwt.WithValidate(true),
+		)
+		if err != nil {
+			http.Error(w, "Error parsing token", http.StatusBadRequest)
+			return
+		}
+
+		// Validate the token
+		if err := jwt.Validate(token); err != nil {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		// Token is valid, proceed with the next handler
+		next.ServeHTTP(w, r)
+	})
 }
