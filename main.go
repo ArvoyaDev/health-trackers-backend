@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ArvoyaDev/symptom-tracker-backend/internal/auth"
+	db "github.com/ArvoyaDev/symptom-tracker-backend/internal/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -18,6 +19,7 @@ type config struct {
 	dbName         string
 	dataSourceName string
 	AuthClient     *auth.CognitoClient
+	dbClientData   db.DBClientData
 }
 
 func main() {
@@ -29,10 +31,17 @@ func main() {
 	port := os.Getenv("PORT")
 	dbName := os.Getenv("DATABASE_NAME")
 	authClient := auth.Init()
+	clientData := db.DBClientData{
+		AwsRegion:   os.Getenv("AWS_REGION"),
+		DbName:      os.Getenv("DATABASE_NAME"),
+		DbUser:      os.Getenv("DATABASE_USER"),
+		RdsEndpoint: os.Getenv("RDS_ENDPOINT"),
+	}
 	config := config{
 		dbName:         dbName,
 		dataSourceName: dataSourceName,
 		AuthClient:     authClient,
+		dbClientData:   clientData,
 	}
 
 	// Main router with subrouting
@@ -40,9 +49,10 @@ func main() {
 
 	// DB Mux & routes
 	dbMux := http.NewServeMux()
+	mainMux.HandleFunc("/testdb", config.testDBConnection)
 
-	dbMux.HandleFunc("GET /logs", config.getHeartburnLogs)
-	dbMux.HandleFunc("POST /logs", config.createHeartburnLog)
+	// dbMux.HandleFunc("GET /logs", config.getHeartburnLogs)
+	// dbMux.HandleFunc("POST /logs", config.createHeartburnLog)
 
 	authMux := TokenAuthMiddleware(dbMux)
 
