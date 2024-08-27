@@ -1,6 +1,8 @@
 package db
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func (d *Database) CreateUser(user User) error {
 	query := `INSERT INTO users (email, cognito_sub) VALUES (?, ?)`

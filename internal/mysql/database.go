@@ -31,6 +31,7 @@ type DBClientData struct {
 // NOTE: New initializes a new Database connection.
 func New() (*Database, error) {
 	// Retrieve database connection details from environment variables
+
 	dbName := os.Getenv("DATABASE_NAME")
 	dbUser := os.Getenv("DATABASE_USER")
 	dbHost := os.Getenv("RDS_ENDPOINT")
@@ -109,10 +110,14 @@ func (d *Database) Close() error {
 }
 
 func (d *Database) GetUserBySub(cognitoSub string) (User, error) {
+	err := d.mysql.Ping()
+	if err != nil {
+		return User{}, fmt.Errorf("error pinging database: %w", err)
+	}
 	query := `SELECT * FROM users WHERE cognito_sub = ?`
 	row := d.mysql.QueryRow(query, cognitoSub)
 	var user User
-	err := row.Scan(&user.ID, &user.Email, &user.CognitoSub)
+	err = row.Scan(&user.ID, &user.Email, &user.CognitoSub)
 	if err != nil {
 		return User{}, fmt.Errorf("error scanning user: %w", err)
 	}

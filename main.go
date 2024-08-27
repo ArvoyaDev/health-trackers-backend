@@ -20,7 +20,6 @@ type config struct {
 	dataSourceName string
 	AuthClient     *auth.CognitoClient
 	dbClientData   db.DBClientData
-	db             *db.Database
 }
 
 func main() {
@@ -34,12 +33,6 @@ func main() {
 	port := os.Getenv("PORT")
 	authClient := auth.Init()
 
-	database, err := db.New()
-	if err != nil {
-		log.Fatalf("Error initializing database: %v", err)
-	}
-	defer database.Close()
-
 	clientData := db.DBClientData{
 		AwsRegion:   os.Getenv("AWS_REGION"),
 		DbName:      os.Getenv("DATABASE_NAME"),
@@ -50,7 +43,6 @@ func main() {
 		dataSourceName: dataSourceName,
 		AuthClient:     authClient,
 		dbClientData:   clientData,
-		db:             database,
 	}
 
 	// Main router with subrouting
@@ -62,9 +54,8 @@ func main() {
 	dbMux.HandleFunc("GET /user", config.getUser)
 	dbMux.HandleFunc("POST /make-user", config.createUser)
 	dbMux.HandleFunc("POST /make-illness", config.createIllness)
-
-	// dbMux.HandleFunc("GET /logs", config.getHeartburnLogs)
-	// dbMux.HandleFunc("POST /logs", config.createHeartburnLog)
+	dbMux.HandleFunc("POST /make-symptoms", config.createSymptoms)
+	dbMux.HandleFunc("POST /create-symptom-log", config.createSymptomLog)
 
 	authMux := TokenAuthMiddleware(dbMux)
 
