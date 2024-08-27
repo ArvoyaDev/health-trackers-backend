@@ -36,11 +36,31 @@ func (c *config) getUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, error, http.StatusNotFound)
 		return
 	}
+	illnesses, err := database.GetIllnessesByUserID(user.ID)
+	if err != nil {
+		error := "Failed to get illnesses: " + err.Error()
+		http.Error(w, error, http.StatusInternalServerError)
+		return
+	}
+
+	allSymptoms := make([][]db.Symptom, len(illnesses))
+
+	for i, illness := range illnesses {
+		symptoms, err := database.GetSymptomsByIllnessID(illness.ID)
+		if err != nil {
+			error := "Failed to get symptoms: " + err.Error()
+			http.Error(w, error, http.StatusInternalServerError)
+			return
+		}
+		allSymptoms[i] = symptoms
+	}
 
 	// Respond with user profile
 	response := map[string]interface{}{
-		"username": user.CognitoSub,
-		"email":    user.Email,
+		"username":  user.CognitoSub,
+		"email":     user.Email,
+		"illnesses": illnesses,
+		"symptoms":  allSymptoms,
 		// Include other user details as needed
 	}
 	jsonData, err := json.Marshal(response)

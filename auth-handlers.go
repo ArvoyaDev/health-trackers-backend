@@ -14,8 +14,8 @@ import (
 type User struct {
 	Username  string `json:"username"`
 	Password  string `json:"password"`
-	FirstName string `json:"name"`
-	LastName  string `json:"family_name"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 }
 
 func (cfg *config) signUp(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +46,6 @@ func (cfg *config) signUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("User signed up successfully"))
 }
 
 type ConfirmSignupRequest struct {
@@ -102,7 +101,6 @@ func (c *config) RequestVerificationCode(w http.ResponseWriter, r *http.Request)
 	)
 	if err != nil {
 		http.Error(w, "Failed to calculate secret hash", http.StatusInternalServerError)
-		log.Printf("Failed to calculate secret hash: %v", err)
 		return
 	}
 
@@ -116,12 +114,10 @@ func (c *config) RequestVerificationCode(w http.ResponseWriter, r *http.Request)
 	)
 	if err != nil {
 		http.Error(w, "Failed to resend confirmation code", http.StatusInternalServerError)
-		log.Printf("Failed to resend confirmation code: %v", err)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Verification code resent successfully"))
 }
 
 type SignInResponse struct {
@@ -145,7 +141,6 @@ func (c *config) SignIn(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		http.Error(w, "Failed to calculate secret hash", http.StatusInternalServerError)
-		log.Printf("Failed to calculate secret hash: %v", err)
 		return
 	}
 	obj, err := c.AuthClient.AdminInitiateAuth(
@@ -162,8 +157,7 @@ func (c *config) SignIn(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 	if err != nil {
-		http.Error(w, "Failed to sign in", http.StatusInternalServerError)
-		log.Printf("Failed to sign in: %v", err)
+		http.Error(w, "Failed to authenticatee ", http.StatusInternalServerError)
 		return
 	}
 
@@ -177,8 +171,7 @@ func (c *config) SignIn(w http.ResponseWriter, r *http.Request) {
 
 	jsonData, err := json.Marshal(response)
 	if err != nil {
-		http.Error(w, "Failed to sign in", http.StatusInternalServerError)
-		log.Printf("Failed to sign in: %v", err)
+		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
 		return
 	}
 

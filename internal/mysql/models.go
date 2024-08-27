@@ -4,8 +4,6 @@ type User struct {
 	ID         int    `json:"id"`
 	CognitoSub string `json:"cognito_sub"`
 	Email      string `json:"email"`
-	FirstName  string `json:"first_name"`
-	LastName   string `json:"last_name"`
 }
 
 type Illness struct {

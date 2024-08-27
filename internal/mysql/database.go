@@ -108,18 +108,3 @@ func (d *Database) Close() error {
 	log.Println("Closing database connection")
 	return d.mysql.Close()
 }
-
-func (d *Database) GetUserBySub(cognitoSub string) (User, error) {
-	err := d.mysql.Ping()
-	if err != nil {
-		return User{}, fmt.Errorf("error pinging database: %w", err)
-	}
-	query := `SELECT * FROM users WHERE cognito_sub = ?`
-	row := d.mysql.QueryRow(query, cognitoSub)
-	var user User
-	err = row.Scan(&user.ID, &user.Email, &user.CognitoSub)
-	if err != nil {
-		return User{}, fmt.Errorf("error scanning user: %w", err)
-	}
-	return user, nil
-}
