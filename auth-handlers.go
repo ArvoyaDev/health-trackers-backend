@@ -12,8 +12,10 @@ import (
 )
 
 type User struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	FirstName string `json:"name"`
+	LastName  string `json:"family_name"`
 }
 
 func (cfg *config) signUp(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +33,13 @@ func (cfg *config) signUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call the SignUp method from CognitoClient
-	err := cfg.AuthClient.SignUp(context.Background(), user.Username, user.Password)
+	err := cfg.AuthClient.SignUp(
+		context.Background(),
+		user.Username,
+		user.FirstName,
+		user.LastName,
+		user.Password,
+	)
 	if err != nil {
 		http.Error(w, "Failed to sign up user: "+err.Error(), http.StatusInternalServerError)
 		return

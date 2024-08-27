@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -16,21 +17,29 @@ import (
 )
 
 type config struct {
-	dbName         string
 	dataSourceName string
 	AuthClient     *auth.CognitoClient
 	dbClientData   db.DBClientData
+	db             *db.Database
 }
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if os.Getenv("ENV") != "production" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal("Error loading .env file")
+		}
 	}
 	dataSourceName := os.Getenv("AWS_DATABASE_URL")
 	port := os.Getenv("PORT")
-	dbName := os.Getenv("DATABASE_NAME")
 	authClient := auth.Init()
+
+	database, err := db.New()
+	if err != nil {
+		log.Fatalf("Error initializing database: %v", err)
+	}
+	defer database.Close()
+
 	clientData := db.DBClientData{
 		AwsRegion:   os.Getenv("AWS_REGION"),
 		DbName:      os.Getenv("DATABASE_NAME"),
@@ -38,10 +47,10 @@ func main() {
 		RdsEndpoint: os.Getenv("RDS_ENDPOINT"),
 	}
 	config := config{
-		dbName:         dbName,
 		dataSourceName: dataSourceName,
 		AuthClient:     authClient,
 		dbClientData:   clientData,
+		db:             database,
 	}
 
 	// Main router with subrouting
@@ -49,7 +58,10 @@ func main() {
 
 	// DB Mux & routes
 	dbMux := http.NewServeMux()
-	mainMux.HandleFunc("/testdb", config.testDBConnection)
+
+	dbMux.HandleFunc("GET /user", config.getUser)
+	dbMux.HandleFunc("POST /make-user", config.createUser)
+	dbMux.HandleFunc("POST /make-illness", config.createIllness)
 
 	// dbMux.HandleFunc("GET /logs", config.getHeartburnLogs)
 	// dbMux.HandleFunc("POST /logs", config.createHeartburnLog)
@@ -136,23 +148,21 @@ func TokenAuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Parse and validate token
-		token, err := jwt.Parse(
-			[]byte(splitAuthHeader[1]),
-			jwt.WithKeySet(keySet),
-			jwt.WithValidate(true),
-		)
+		token, err := jwt.Parse([]byte(splitAuthHeader[1]), jwt.WithKeySet(keySet))
 		if err != nil {
 			http.Error(w, "Error parsing token", http.StatusBadRequest)
 			return
 		}
 
-		// Validate the token
-		if err := jwt.Validate(token); err != nil {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
+		// Extract claims
+		claims := token.PrivateClaims()
+		if claims == nil {
+			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
 			return
 		}
 
-		// Token is valid, proceed with the next handler
-		next.ServeHTTP(w, r)
+		// Attach claims to request context
+		ctx := context.WithValue(r.Context(), "User-claims", claims)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

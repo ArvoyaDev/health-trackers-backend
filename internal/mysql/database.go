@@ -104,15 +104,17 @@ func New() (*Database, error) {
 
 // NOTE: Close closes the database connection.
 func (d *Database) Close() error {
-	fmt.Println("Closing database connection")
+	log.Println("Closing database connection")
 	return d.mysql.Close()
 }
 
-func (d *Database) SelectDatabase(database string) error {
-	_, err := d.mysql.Exec("USE " + database)
+func (d *Database) GetUserBySub(cognitoSub string) (User, error) {
+	query := `SELECT * FROM users WHERE cognito_sub = ?`
+	row := d.mysql.QueryRow(query, cognitoSub)
+	var user User
+	err := row.Scan(&user.ID, &user.Email, &user.CognitoSub)
 	if err != nil {
-		return fmt.Errorf("error selecting database: %w", err)
+		return User{}, fmt.Errorf("error scanning user: %w", err)
 	}
-	fmt.Println("Selected database: " + database)
-	return nil
+	return user, nil
 }

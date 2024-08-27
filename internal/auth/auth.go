@@ -38,11 +38,15 @@ func Init() *CognitoClient {
 }
 
 // SignUp registers a new user in the Cognito User Pool
-func (c *CognitoClient) SignUp(ctx context.Context, email, password string) error {
+func (c *CognitoClient) SignUp(
+	ctx context.Context,
+	email, firstName, lastName, password string,
+) error {
 	secretHash, err := CalculateSecretHash(c.AppClientID, os.Getenv("COGNITO_CLIENT_SECRET"), email)
 	if err != nil {
 		return errors.New("failed to calculate secret hash: " + err.Error())
 	}
+
 	input := &cip.SignUpInput{
 		ClientId:   aws.String(c.AppClientID),
 		Username:   aws.String(email),
@@ -52,6 +56,14 @@ func (c *CognitoClient) SignUp(ctx context.Context, email, password string) erro
 			{
 				Name:  aws.String("email"),
 				Value: aws.String(email),
+			},
+			{
+				Name:  aws.String("name"),
+				Value: aws.String(firstName),
+			},
+			{
+				Name:  aws.String("family_name"),
+				Value: aws.String(lastName),
 			},
 		},
 	}
