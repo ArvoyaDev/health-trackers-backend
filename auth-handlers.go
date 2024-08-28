@@ -169,6 +169,7 @@ func (c *config) SignIn(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteNoneMode,
 		Secure:   true,
 		Path:     "/aws-cognito/refresh-token",
+		Domain:   "symptom-log.netlify.app",
 	})
 
 	response := &SignInResponse{
