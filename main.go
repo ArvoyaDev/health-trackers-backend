@@ -98,12 +98,19 @@ func main() {
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set the Access-Control-Allow-Origin header to allow all origins
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		// Set the Access-Control-Allow-Methods header to allow all methods
+		origin := r.Header.Get("Origin")
+		allowedOrigins := map[string]bool{
+			"https://symptom-log.netlify.app": true, // Production URL
+			"http://localhost:5173":           true, // Local development URL
+		}
+
+		// Check if the origin is allowed
+		if allowedOrigins[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		// Set the Access-Control-Allow-Headers header to allow all headers
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
