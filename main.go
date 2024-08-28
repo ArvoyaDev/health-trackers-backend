@@ -57,6 +57,11 @@ func main() {
 	dbMux.HandleFunc("POST /make-symptoms", config.createSymptoms)
 	dbMux.HandleFunc("POST /create-symptom-log", config.createSymptomLog)
 
+	mainMux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
+		sosecret := os.Getenv("ENV")
+		w.Write([]byte(sosecret))
+	})
+
 	authMux := TokenAuthMiddleware(dbMux)
 
 	mainMux.Handle("/db/", http.StripPrefix("/db", authMux))
