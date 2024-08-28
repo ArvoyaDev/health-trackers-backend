@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
@@ -31,7 +32,6 @@ type DBClientData struct {
 // NOTE: New initializes a new Database connection.
 func New() (*Database, error) {
 	// Retrieve database connection details from environment variables
-
 	dbName := os.Getenv("DATABASE_NAME")
 	dbUser := os.Getenv("DATABASE_USER")
 	dbHost := os.Getenv("RDS_ENDPOINT")
@@ -55,13 +55,14 @@ func New() (*Database, error) {
 		return nil, fmt.Errorf("failed to create authentication token: %w", err)
 	}
 
-	// Load CA certificate
-	caCert, err := os.ReadFile("./us-west-2-bundle.pem")
+	// Load CA certificate from environment variable
+	caCertBase64 := os.Getenv("CA_CERT")
+	caCertBytes, err := base64.StdEncoding.DecodeString(caCertBase64)
 	if err != nil {
-		return nil, fmt.Errorf("error reading CA certificate: %w", err)
+		return nil, fmt.Errorf("error decoding CA certificate: %w", err)
 	}
 	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
+	caCertPool.AppendCertsFromPEM(caCertBytes)
 
 	// Configure TLS settings
 	tlsConfig := &tls.Config{
@@ -90,7 +91,7 @@ func New() (*Database, error) {
 	}
 
 	// Set database connection parameters
-	db.SetConnMaxLifetime(3 * time.Minute)
+	db.SetConnMaxLifetime(15 * time.Minute)
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
 

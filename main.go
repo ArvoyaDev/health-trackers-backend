@@ -65,6 +65,7 @@ func main() {
 	cognitoMux := http.NewServeMux()
 
 	mainMux.Handle("/aws-cognito/", http.StripPrefix("/aws-cognito", cognitoMux))
+	cognitoMux.HandleFunc("POST /refresh-token", config.RefreshToken)
 
 	cognitoMux.HandleFunc("POST /signup", config.signUp)
 	cognitoMux.HandleFunc("POST /confirm-signup", config.ConfirmSignup)

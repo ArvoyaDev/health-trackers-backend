@@ -161,12 +161,80 @@ func (c *config) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    *obj.AuthenticationResult.RefreshToken,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+		Secure:   true,
+		Path:     "/aws-cognito/refresh-token",
+	})
+
 	response := &SignInResponse{
-		AccessToken:  obj.AuthenticationResult.AccessToken,
-		ExpiresIn:    obj.AuthenticationResult.ExpiresIn,
-		TokenType:    obj.AuthenticationResult.TokenType,
-		IDToken:      obj.AuthenticationResult.IdToken,
-		RefreshToken: obj.AuthenticationResult.RefreshToken,
+		AccessToken: obj.AuthenticationResult.AccessToken,
+		ExpiresIn:   obj.AuthenticationResult.ExpiresIn,
+		TokenType:   obj.AuthenticationResult.TokenType,
+		IDToken:     obj.AuthenticationResult.IdToken,
+	}
+
+	jsonData, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(jsonData))
+}
+
+func (c *config) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	refreshToken, err := r.Cookie("refreshToken")
+	if err != nil {
+		http.Error(w, "Failed to retrieve refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	secretHash, err := auth.CalculateSecretHash(
+		c.AuthClient.AppClientID,
+		os.Getenv("COGNITO_CLIENT_SECRET"),
+		os.Getenv("COGNITO_USERNAME"),
+	)
+	if err != nil {
+		http.Error(w, "Failed to calculate secret hash", http.StatusInternalServerError)
+		return
+	}
+
+	obj, err := c.AuthClient.AdminInitiateAuth(
+		context.TODO(),
+		&cognitoidentityprovider.AdminInitiateAuthInput{
+			AuthFlow:   "REFRESH_TOKEN_AUTH",
+			ClientId:   &c.AuthClient.AppClientID,
+			UserPoolId: &c.AuthClient.UserPoolID,
+			AuthParameters: map[string]string{
+				"REFRESH_TOKEN": refreshToken.Value,
+				"SECRET_HASH":   secretHash,
+			},
+		},
+	)
+	if err != nil {
+		http.Error(w, "Failed to refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    *obj.AuthenticationResult.RefreshToken,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+		Secure:   true,
+		Path:     "/aws-cognito/refresh-token",
+	})
+
+	response := &SignInResponse{
+		AccessToken: obj.AuthenticationResult.AccessToken,
+		ExpiresIn:   obj.AuthenticationResult.ExpiresIn,
+		TokenType:   obj.AuthenticationResult.TokenType,
+		IDToken:     obj.AuthenticationResult.IdToken,
 	}
 
 	jsonData, err := json.Marshal(response)

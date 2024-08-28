@@ -18,7 +18,7 @@ func (c *config) getUser(w http.ResponseWriter, r *http.Request) {
 	// Extract user info from claims
 	sub, ok := claims["username"].(string)
 	if !ok {
-		http.Error(w, "usernmae claim missing or invalid", http.StatusUnauthorized)
+		http.Error(w, "username claim missing or invalid", http.StatusUnauthorized)
 		return
 	}
 
@@ -36,6 +36,7 @@ func (c *config) getUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, error, http.StatusNotFound)
 		return
 	}
+
 	illnesses, err := database.GetIllnessesByUserID(user.ID)
 	if err != nil {
 		error := "Failed to get illnesses: " + err.Error()
@@ -61,7 +62,6 @@ func (c *config) getUser(w http.ResponseWriter, r *http.Request) {
 		"email":     user.Email,
 		"illnesses": illnesses,
 		"symptoms":  allSymptoms,
-		// Include other user details as needed
 	}
 	jsonData, err := json.Marshal(response)
 	if err != nil {
