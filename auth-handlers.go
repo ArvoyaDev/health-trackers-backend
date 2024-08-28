@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/ArvoyaDev/symptom-tracker-backend/internal/auth"
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
@@ -121,11 +123,10 @@ func (c *config) RequestVerificationCode(w http.ResponseWriter, r *http.Request)
 }
 
 type SignInResponse struct {
-	AccessToken  *string `json:"accessToken"`
-	ExpiresIn    int32   `json:"expiresIn"`
-	TokenType    *string `json:"tokenType"`
-	IDToken      *string `json:"idToken"`
-	RefreshToken *string `json:"refreshToken"`
+	AccessToken *string `json:"accessToken"`
+	ExpiresIn   int32   `json:"expiresIn"`
+	TokenType   *string `json:"tokenType"`
+	IDToken     *string `json:"idToken"`
 }
 
 func (c *config) SignIn(w http.ResponseWriter, r *http.Request) {
@@ -162,14 +163,51 @@ func (c *config) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// get the sub value from the id token by decoding it
+	// store the sub value in a cookie
+	// Decode the JWT (ID token)
+	idToken := *obj.AuthenticationResult.IdToken
+	parts := strings.Split(idToken, ".")
+	if len(parts) != 3 {
+		http.Error(w, "Invalid ID token", http.StatusInternalServerError)
+		return
+	}
+
+	// Decode the payload (the second part of the JWT)
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		http.Error(w, "Failed to decode ID token", http.StatusInternalServerError)
+		return
+	}
+
+	// Unmarshal the payload into a map to extract the "sub" claim
+	var claims map[string]interface{}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		http.Error(w, "Failed to parse ID token", http.StatusInternalServerError)
+		return
+	}
+
+	sub, ok := claims["sub"].(string)
+	if !ok {
+		http.Error(w, "Failed to extract 'sub' from ID token", http.StatusInternalServerError)
+		return
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refreshToken",
 		Value:    *obj.AuthenticationResult.RefreshToken,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-		Secure:   true,
 		Path:     "/aws-cognito/refresh-token",
-		Domain:   "symptom-log.netlify.app",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "userSub",
+		Value:    sub, // Replace with the actual email value
+		Path:     "/aws-cognito/refresh-token",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	response := &SignInResponse{
@@ -195,11 +233,16 @@ func (c *config) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to retrieve refresh token", http.StatusInternalServerError)
 		return
 	}
+	userSub, err := r.Cookie("userSub")
+	if err != nil {
+		http.Error(w, "Failed to retrieve user email", http.StatusInternalServerError)
+		return
+	}
 
 	secretHash, err := auth.CalculateSecretHash(
 		c.AuthClient.AppClientID,
 		os.Getenv("COGNITO_CLIENT_SECRET"),
-		os.Getenv("COGNITO_USERNAME"),
+		userSub.Value,
 	)
 	if err != nil {
 		http.Error(w, "Failed to calculate secret hash", http.StatusInternalServerError)
@@ -219,18 +262,10 @@ func (c *config) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 	if err != nil {
-		http.Error(w, "Failed to refresh token", http.StatusInternalServerError)
+		error := "Failed to refresh token: " + err.Error()
+		http.Error(w, error, http.StatusInternalServerError)
 		return
 	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refreshToken",
-		Value:    *obj.AuthenticationResult.RefreshToken,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-		Secure:   true,
-		Path:     "/aws-cognito/refresh-token",
-	})
 
 	response := &SignInResponse{
 		AccessToken: obj.AuthenticationResult.AccessToken,
