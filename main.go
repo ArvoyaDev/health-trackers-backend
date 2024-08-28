@@ -57,9 +57,14 @@ func main() {
 	dbMux.HandleFunc("POST /make-symptoms", config.createSymptoms)
 	dbMux.HandleFunc("POST /create-symptom-log", config.createSymptomLog)
 
-	mainMux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
-		sosecret := os.Getenv("ENV")
-		w.Write([]byte(sosecret))
+	mainMux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		state := os.Getenv("ENV")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(state))
+	})
+
+	mainMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Not Found", http.StatusNotFound)
 	})
 
 	authMux := TokenAuthMiddleware(dbMux)
