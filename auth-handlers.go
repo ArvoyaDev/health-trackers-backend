@@ -157,7 +157,8 @@ func (c *config) SignIn(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 	if err != nil {
-		http.Error(w, "Failed to authenticatee ", http.StatusInternalServerError)
+		error := "Failed to authenticate user: " + err.Error()
+		http.Error(w, error, http.StatusInternalServerError)
 		return
 	}
 
