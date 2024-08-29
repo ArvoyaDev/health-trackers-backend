@@ -195,7 +195,7 @@ func (c *config) SignIn(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refreshToken",
 		Value:    *obj.AuthenticationResult.RefreshToken,
-		Path:     "/aws-cognito/refresh-token",
+		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
@@ -204,7 +204,7 @@ func (c *config) SignIn(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "userSub",
 		Value:    sub, // Replace with the actual email value
-		Path:     "/aws-cognito/refresh-token",
+		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
