@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ArvoyaDev/symptom-tracker-backend/internal/auth"
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
@@ -51,7 +52,7 @@ func (cfg *config) signUp(w http.ResponseWriter, r *http.Request) {
 }
 
 type ConfirmSignupRequest struct {
-	Username         string `json:"username"`
+	Email            string `json:"email"`
 	ConfirmationCode string `json:"confirmationCode"`
 }
 
@@ -64,7 +65,7 @@ func (c *config) ConfirmSignup(w http.ResponseWriter, r *http.Request) {
 	secretHash, err := auth.CalculateSecretHash(
 		c.AuthClient.AppClientID,
 		os.Getenv("COGNITO_CLIENT_SECRET"),
-		req.Username,
+		req.Email,
 	)
 	if err != nil {
 		http.Error(w, "Failed to calculate secret hash", http.StatusInternalServerError)
@@ -76,7 +77,7 @@ func (c *config) ConfirmSignup(w http.ResponseWriter, r *http.Request) {
 		context.TODO(),
 		&cognitoidentityprovider.ConfirmSignUpInput{
 			ClientId:         &c.AuthClient.AppClientID,
-			Username:         &req.Username,
+			Username:         &req.Email,
 			SecretHash:       &secretHash,
 			ConfirmationCode: &req.ConfirmationCode,
 		},
@@ -99,7 +100,7 @@ func (c *config) RequestVerificationCode(w http.ResponseWriter, r *http.Request)
 	secretHash, err := auth.CalculateSecretHash(
 		c.AuthClient.AppClientID,
 		os.Getenv("COGNITO_CLIENT_SECRET"),
-		req.Username,
+		req.Email,
 	)
 	if err != nil {
 		http.Error(w, "Failed to calculate secret hash", http.StatusInternalServerError)
@@ -111,7 +112,7 @@ func (c *config) RequestVerificationCode(w http.ResponseWriter, r *http.Request)
 		&cognitoidentityprovider.ResendConfirmationCodeInput{
 			SecretHash: &secretHash,
 			ClientId:   &c.AuthClient.AppClientID,
-			Username:   &req.Username,
+			Username:   &req.Email,
 		},
 	)
 	if err != nil {
@@ -282,4 +283,48 @@ func (c *config) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(jsonData))
+}
+
+func (c *config) SignOut(w http.ResponseWriter, r *http.Request) {
+	userSub, err := r.Cookie("userSub")
+	if err != nil {
+		http.Error(w, "Failed to retrieve user email", http.StatusInternalServerError)
+		return
+	}
+	sub := userSub.Value
+
+	_, err = c.AuthClient.AdminUserGlobalSignOut(context.TODO(),
+		&cognitoidentityprovider.AdminUserGlobalSignOutInput{
+			Username:   &sub,
+			UserPoolId: &c.AuthClient.UserPoolID,
+		},
+	)
+	if err != nil {
+		http.Error(w, "Failed to sign out user", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+		Expires:  time.Unix(0, 0), // Set expiration to a past time
+		MaxAge:   -1,              // Ensure the cookie is removed immediately
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "userSub",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+		Expires:  time.Unix(0, 0), // Set expiration to a past time
+		MaxAge:   -1,              // Ensure the cookie is removed immediately
+	})
+
+	w.WriteHeader(http.StatusOK)
 }
