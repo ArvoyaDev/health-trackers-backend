@@ -27,3 +27,9 @@ type SymptomLog struct {
 	Symptoms  string `json:"symptoms"`
 	Notes     string `json:"notes"`
 }
+
+type CompleteUser struct {
+	Email    string   `json:"email"`
+	Illness  string   `json:"illness"`
+	Symptoms []string `json:"symptoms"`
+}

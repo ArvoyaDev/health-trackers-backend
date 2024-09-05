@@ -4,27 +4,27 @@ import (
 	"fmt"
 )
 
-func (d *Database) CreateUser(user User) error {
+func (d *Database) CreateUser(email, sub string) error {
 	query := `INSERT INTO users (email, cognito_sub) VALUES (?, ?)`
-	_, err := d.mysql.Exec(query, user.Email, user.CognitoSub)
+	_, err := d.mysql.Exec(query, email, sub)
 	if err != nil {
 		return fmt.Errorf("error inserting user: %w", err)
 	}
 	return nil
 }
 
-func (d *Database) CreateIllness(illness Illness) error {
+func (d *Database) CreateIllness(illness string, userID int) error {
 	query := `INSERT INTO illnesses (illness_name, user_id) VALUES (?, ?)`
-	_, err := d.mysql.Exec(query, illness.IllnessName, illness.UserID)
+	_, err := d.mysql.Exec(query, illness, userID)
 	if err != nil {
 		return fmt.Errorf("error inserting illness: %w", err)
 	}
 	return nil
 }
 
-func (d *Database) CreateSymptom(symptom Symptom) error {
+func (d *Database) CreateSymptom(symptom string, illnessID int) error {
 	query := `INSERT INTO symptoms (symptom_name, illness_id) VALUES (?, ?)`
-	_, err := d.mysql.Exec(query, symptom.SymptomName, symptom.IllnessID)
+	_, err := d.mysql.Exec(query, symptom, illnessID)
 	if err != nil {
 		return fmt.Errorf("error inserting symptom: %w", err)
 	}
@@ -59,6 +59,17 @@ func (d *Database) GetUserBySub(cognitoSub string) (User, error) {
 	return user, nil
 }
 
+func (d *Database) GetIllnessByName(illnessName string) (Illness, error) {
+	query := `SELECT * FROM illnesses WHERE illness_name = ?`
+	row := d.mysql.QueryRow(query, illnessName)
+	var illness Illness
+	err := row.Scan(&illness.ID, &illness.IllnessName, &illness.UserID)
+	if err != nil {
+		return Illness{}, fmt.Errorf("error scanning illness: %w", err)
+	}
+	return illness, nil
+}
+
 func (d *Database) GetIllnessesByUserID(userID int) ([]Illness, error) {
 	query := `SELECT * FROM illnesses WHERE user_id = ?`
 	rows, err := d.mysql.Query(query, userID)
@@ -90,7 +101,7 @@ func (d *Database) GetSymptomsByIllnessID(illnessID int) ([]Symptom, error) {
 	var symptoms []Symptom
 	for rows.Next() {
 		var symptom Symptom
-		err := rows.Scan(&symptom.ID, &symptom.SymptomName, &symptom.IllnessID)
+		err := rows.Scan(&symptom.ID, &symptom.IllnessID, &symptom.SymptomName)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning symptom: %w", err)
 		}
