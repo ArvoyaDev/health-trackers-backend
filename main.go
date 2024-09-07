@@ -53,7 +53,7 @@ func main() {
 
 	dbMux.HandleFunc("GET /user", config.getUser)
 	dbMux.HandleFunc("POST /make-user", config.createUser)
-	dbMux.HandleFunc("POST /make-illness", config.createIllness)
+	dbMux.HandleFunc("POST /make-tracker", config.createTracker)
 	dbMux.HandleFunc("POST /make-symptoms", config.createSymptoms)
 	dbMux.HandleFunc("POST /create-symptom-log", config.createSymptomLog)
 

@@ -22,53 +22,75 @@ func (c *config) getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Connect to the database
 	database, err := db.New()
 	if err != nil {
 		http.Error(w, "Failed to connect to database", http.StatusInternalServerError)
 		return
 	}
-
 	defer database.Close()
+
 	// Check if user exists in the database
 	user, err := database.GetUserBySub(sub)
 	if err != nil {
-		error := "Failed to get user: " + err.Error()
-		http.Error(w, error, http.StatusNotFound)
+		http.Error(w, "Failed to get user: "+err.Error(), http.StatusNotFound)
 		return
 	}
 
-	illnesses, err := database.GetIllnessesByUserID(user.ID)
+	// Define response struct with trackers and their symptoms
+	type trackerResponse struct {
+		ID          int          `json:"id"`
+		TrackerName string       `json:"tracker_name"`
+		Symptoms    []db.Symptom `json:"symptoms"`
+	}
+
+	type Response struct {
+		Trackers []trackerResponse `json:"trackers"`
+	}
+
+	// Get trackers by user ID
+	trackers, err := database.GetTrackerByUserID(user.ID)
 	if err != nil {
-		error := "Failed to get illnesses: " + err.Error()
-		http.Error(w, error, http.StatusInternalServerError)
+		http.Error(w, "Failed to get trackers: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	allSymptoms := make([][]db.Symptom, len(illnesses))
+	// Initialize the response trackers slice
+	var responseTrackers []trackerResponse
 
-	for i, illness := range illnesses {
-		symptoms, err := database.GetSymptomsByIllnessID(illness.ID)
+	// Loop through trackers and attach symptoms
+	for _, tracker := range trackers {
+		// Get symptoms for each tracker
+		symptoms, err := database.GetSymptomsByTrackerID(tracker.ID)
 		if err != nil {
-			error := "Failed to get symptoms: " + err.Error()
-			http.Error(w, error, http.StatusInternalServerError)
+			http.Error(w, "Failed to get symptoms: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		allSymptoms[i] = symptoms
+
+		// Create tracker response with symptoms
+		trackerRes := trackerResponse{
+			ID:          tracker.ID,
+			TrackerName: tracker.TrackerName,
+			Symptoms:    symptoms, // Attach symptoms to the tracker
+		}
+
+		// Append to the response
+		responseTrackers = append(responseTrackers, trackerRes)
 	}
 
-	// Respond with user profile
-	response := map[string]interface{}{
-		"username":  user.CognitoSub,
-		"email":     user.Email,
-		"illnesses": illnesses,
-		"symptoms":  allSymptoms,
+	// Build the final response
+	response := Response{
+		Trackers: responseTrackers,
 	}
+
+	// Convert the response to JSON
 	jsonData, err := json.Marshal(response)
 	if err != nil {
 		http.Error(w, "Failed to serialize user data", http.StatusInternalServerError)
 		return
 	}
 
+	// Send the JSON response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonData)
@@ -119,22 +141,22 @@ func (c *config) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = database.CreateIllness(user.Illness, createdUser.ID)
+	err = database.CreateTracker(user.Tracker, createdUser.ID)
 	if err != nil {
-		error := "Failed to create illness: " + err.Error()
+		error := "Failed to create tracker: " + err.Error()
 		http.Error(w, error, http.StatusInternalServerError)
 		return
 	}
 
-	createdIllness, err := database.GetIllnessByName(user.Illness)
+	createdTracker, err := database.GetTrackerByName(user.Tracker)
 	if err != nil {
-		error := "Failed to get illness: " + err.Error()
+		error := "Failed to get tracker: " + err.Error()
 		http.Error(w, error, http.StatusInternalServerError)
 		return
 	}
 
 	for _, symptom := range user.Symptoms {
-		err := database.CreateSymptom(symptom, createdIllness.ID)
+		err := database.CreateSymptom(symptom, createdTracker.ID)
 		if err != nil {
 			error := "Failed to create symptom: " + err.Error()
 			http.Error(w, error, http.StatusInternalServerError)
@@ -144,13 +166,13 @@ func (c *config) createUser(w http.ResponseWriter, r *http.Request) {
 
 	type Response struct {
 		UserID   int        `json:"user_id"`
-		Illness  db.Illness `json:"illness"`
+		Tracker  db.Tracker `json:"tracker"`
 		Symptoms []string   `json:"symptoms"`
 	}
 
 	response := Response{
 		UserID:   createdUser.ID,
-		Illness:  createdIllness,
+		Tracker:  createdTracker,
 		Symptoms: user.Symptoms,
 	}
 
@@ -165,7 +187,7 @@ func (c *config) createUser(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonData)
 }
 
-func (c *config) createIllness(w http.ResponseWriter, r *http.Request) {
+func (c *config) createTracker(w http.ResponseWriter, r *http.Request) {
 	// Retrieve claims from context
 	claims, ok := r.Context().Value("User-claims").(map[string]interface{})
 	if !ok {
@@ -201,17 +223,17 @@ func (c *config) createIllness(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse request body
-	var illness db.Illness
-	if err := json.NewDecoder(r.Body).Decode(&illness); err != nil {
+	var tracker db.Tracker
+	if err := json.NewDecoder(r.Body).Decode(&tracker); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	illness.UserID = user.ID
+	tracker.UserID = user.ID
 
-	// Create illness in the database
-	err = database.CreateIllness(illness.IllnessName, illness.UserID)
+	// Create tracker in the database
+	err = database.CreateTracker(tracker.TrackerName, tracker.UserID)
 	if err != nil {
-		http.Error(w, "Failed to create illness", http.StatusInternalServerError)
+		http.Error(w, "Failed to create tracker", http.StatusInternalServerError)
 		return
 	}
 
@@ -254,7 +276,7 @@ func (c *config) createSymptoms(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type SymptomRequestBody struct {
-		IllnessID int          `json:"illness_id"`
+		TrackerID int          `json:"tracker_id"`
 		Symptoms  []db.Symptom `json:"symptoms"`
 	}
 
@@ -267,8 +289,8 @@ func (c *config) createSymptoms(w http.ResponseWriter, r *http.Request) {
 
 	// Create symptoms in the database
 	for _, symptom := range symptoms.Symptoms {
-		symptom.IllnessID = symptoms.IllnessID
-		err := database.CreateSymptom(symptom.SymptomName, symptom.IllnessID)
+		symptom.TrackerID = symptoms.TrackerID
+		err := database.CreateSymptom(symptom.SymptomName, symptom.TrackerID)
 		if err != nil {
 			http.Error(w, "Failed to create symptoms", http.StatusInternalServerError)
 			return
@@ -307,23 +329,27 @@ func (c *config) createSymptomLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate request
-	if user.CognitoSub != sub {
-		http.Error(w, "User ID mismatch", http.StatusBadRequest)
-		return
-	}
-
 	// Parse request body
-	var symptomLog db.SymptomLog
+	var symptomLog db.SymptomLogRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&symptomLog); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+	symptomLog.UserID = user.ID
+
+	tracker, err := database.GetTrackerByName(symptomLog.TrackerName)
+	if err != nil {
+		http.Error(w, "Tracker not found", http.StatusNotFound)
+		return
+	}
+
+	symptomLog.TrackerID = tracker.ID
 
 	// Create symptom log in the database
 	err = database.CreateSymptomLog(symptomLog)
 	if err != nil {
-		http.Error(w, "Failed to create symptom log", http.StatusInternalServerError)
+		error := "Failed to create symptom log: " + err.Error()
+		http.Error(w, error, http.StatusInternalServerError)
 		return
 	}
 

@@ -6,22 +6,22 @@ type User struct {
 	Email      string `json:"email"`
 }
 
-type Illness struct {
+type Tracker struct {
 	ID          int    `json:"id"`
 	UserID      int    `json:"user_id"`
-	IllnessName string `json:"illness_name"`
+	TrackerName string `json:"tracker_name"`
 }
 
 type Symptom struct {
 	ID          int    `json:"id"`
-	IllnessID   int    `json:"illness_id"`
+	TrackerID   int    `json:"tracker_id"`
 	SymptomName string `json:"symptom_name"`
 }
 
 type SymptomLog struct {
 	ID        int    `json:"id"`
 	UserID    int    `json:"user_id"`
-	IllnessID int    `json:"illness_id"`
+	TrackerID int    `json:"tracker_id"`
 	LogTime   string `json:"log_time"`
 	Severity  string `json:"severity"`
 	Symptoms  string `json:"symptoms"`
@@ -30,6 +30,15 @@ type SymptomLog struct {
 
 type CompleteUser struct {
 	Email    string   `json:"email"`
-	Illness  string   `json:"illness"`
+	Tracker  string   `json:"tracker"`
 	Symptoms []string `json:"symptoms"`
+}
+
+type SymptomLogRequestBody struct {
+	TrackerName      string `json:"tracker_name"`
+	SelectedSymptoms string `json:"selected_symptoms"`
+	Severity         string `json:"severity"`
+	Notes            string `json:"notes"`
+	UserID           int    `json:"user_id"`
+	TrackerID        int    `json:"tracker_id"`
 }
