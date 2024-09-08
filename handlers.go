@@ -39,9 +39,10 @@ func (c *config) getUser(w http.ResponseWriter, r *http.Request) {
 
 	// Define response struct with trackers and their symptoms
 	type trackerResponse struct {
-		ID          int          `json:"id"`
-		TrackerName string       `json:"tracker_name"`
-		Symptoms    []db.Symptom `json:"symptoms"`
+		ID          int             `json:"id"`
+		TrackerName string          `json:"tracker_name"`
+		Symptoms    []db.Symptom    `json:"symptoms"`
+		Logs        []db.SymptomLog `json:"logs"`
 	}
 
 	type Response struct {
@@ -66,12 +67,18 @@ func (c *config) getUser(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to get symptoms: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		logs, err := database.GetSymptomLogsByTrackerID(tracker.ID)
+		if err != nil {
+			http.Error(w, "Failed to get logs: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// Create tracker response with symptoms
 		trackerRes := trackerResponse{
 			ID:          tracker.ID,
 			TrackerName: tracker.TrackerName,
 			Symptoms:    symptoms, // Attach symptoms to the tracker
+			Logs:        logs,
 		}
 
 		// Append to the response
@@ -377,7 +384,23 @@ func (c *config) createSymptomLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get the created symptom log from the database where time is the closest to the current time
+	createdSymptomLog, err := database.GetSymptomLogByTrackerIDAndCurrentTime(tracker.ID)
+	if err != nil {
+		error := "Failed to get symptom log: " + err.Error()
+		http.Error(w, error, http.StatusInternalServerError)
+		return
+	}
+
+	jsonData, err := json.Marshal(createdSymptomLog)
+	if err != nil {
+		http.Error(w, "Failed to serialize symptom log data", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	w.Write(jsonData)
 }
 
 func (c *config) getSymptomLogs(w http.ResponseWriter, r *http.Request) {

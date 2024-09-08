@@ -136,3 +136,50 @@ func (d *Database) GetSymptomLogsByUserID(userID int) ([]SymptomLog, error) {
 	}
 	return symptomLogs, nil
 }
+
+func (d *Database) GetSymptomLogsByTrackerID(trackerID int) ([]SymptomLog, error) {
+	query := `SELECT * FROM symptom_logs WHERE tracker_id= ?`
+	rows, err := d.mysql.Query(query, trackerID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying symptom logs: %w", err)
+	}
+	defer rows.Close()
+
+	var symptomLogs []SymptomLog
+	for rows.Next() {
+		var symptomLog SymptomLog
+		err := rows.Scan(
+			&symptomLog.ID,
+			&symptomLog.UserID,
+			&symptomLog.TrackerID,
+			&symptomLog.LogTime,
+			&symptomLog.Severity,
+			&symptomLog.Symptoms,
+			&symptomLog.Notes,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning symptom log: %w", err)
+		}
+		symptomLogs = append(symptomLogs, symptomLog)
+	}
+	return symptomLogs, nil
+}
+
+func (d *Database) GetSymptomLogByTrackerIDAndCurrentTime(trackerID int) (SymptomLog, error) {
+	query := `SELECT * FROM symptom_logs WHERE tracker_id= ? ORDER BY log_time DESC LIMIT 1`
+	row := d.mysql.QueryRow(query, trackerID)
+	var symptomLog SymptomLog
+	err := row.Scan(
+		&symptomLog.ID,
+		&symptomLog.UserID,
+		&symptomLog.TrackerID,
+		&symptomLog.LogTime,
+		&symptomLog.Severity,
+		&symptomLog.Symptoms,
+		&symptomLog.Notes,
+	)
+	if err != nil {
+		return SymptomLog{}, fmt.Errorf("error scanning symptom log: %w", err)
+	}
+	return symptomLog, nil
+}
