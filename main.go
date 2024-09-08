@@ -56,6 +56,7 @@ func main() {
 	dbMux.HandleFunc("POST /make-tracker", config.createTracker)
 	dbMux.HandleFunc("POST /make-symptoms", config.createSymptoms)
 	dbMux.HandleFunc("POST /create-symptom-log", config.createSymptomLog)
+	dbMux.HandleFunc("GET /get-symptom-logs", config.getSymptomLogs)
 
 	mainMux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		state := os.Getenv("ENV")
@@ -102,6 +103,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		origin := r.Header.Get("Origin")
 		allowedOrigins := map[string]bool{
 			"https://symptom-log.netlify.app": true, // Production URL
+			"https://myhealthtrackers.com":    true,
 			"http://localhost:5173":           true, // Local development URL
 			"http://127.0.0.1:5173":           true, // Local development URL
 		}

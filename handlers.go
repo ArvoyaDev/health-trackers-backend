@@ -148,7 +148,7 @@ func (c *config) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdTracker, err := database.GetTrackerByName(user.Tracker)
+	createdTracker, err := database.GetTrackerByNameAndUserID(user.Tracker, createdUser.ID)
 	if err != nil {
 		error := "Failed to get tracker: " + err.Error()
 		http.Error(w, error, http.StatusInternalServerError)
@@ -216,14 +216,20 @@ func (c *config) createTracker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate request
-	if user.CognitoSub != sub {
-		http.Error(w, "User ID mismatch", http.StatusBadRequest)
+	// Check Tracker Count
+	trackers, err := database.GetTrackerByUserID(user.ID)
+	if err != nil {
+		http.Error(w, "Failed to get trackers", http.StatusInternalServerError)
+		return
+	}
+
+	if len(trackers) >= 5 {
+		http.Error(w, "Tracker limit reached", http.StatusForbidden)
 		return
 	}
 
 	// Parse request body
-	var tracker db.Tracker
+	var tracker db.NewTrackerRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&tracker); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -233,8 +239,26 @@ func (c *config) createTracker(w http.ResponseWriter, r *http.Request) {
 	// Create tracker in the database
 	err = database.CreateTracker(tracker.TrackerName, tracker.UserID)
 	if err != nil {
-		http.Error(w, "Failed to create tracker", http.StatusInternalServerError)
+		error := "Failed to create tracker: " + err.Error()
+		http.Error(w, error, http.StatusConflict)
 		return
+	}
+
+	// Get the created tracker from the database
+	createdTracker, err := database.GetTrackerByNameAndUserID(tracker.TrackerName, tracker.UserID)
+	if err != nil {
+		error := "Failed to get tracker: " + err.Error()
+		http.Error(w, error, http.StatusInternalServerError)
+		return
+	}
+
+	for _, symptom := range tracker.Symptoms {
+		err := database.CreateSymptom(symptom, createdTracker.ID)
+		if err != nil {
+			error := "Failed to create symptom: " + err.Error()
+			http.Error(w, error, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -337,7 +361,7 @@ func (c *config) createSymptomLog(w http.ResponseWriter, r *http.Request) {
 	}
 	symptomLog.UserID = user.ID
 
-	tracker, err := database.GetTrackerByName(symptomLog.TrackerName)
+	tracker, err := database.GetTrackerByNameAndUserID(symptomLog.TrackerName, user.ID)
 	if err != nil {
 		http.Error(w, "Tracker not found", http.StatusNotFound)
 		return
@@ -354,4 +378,59 @@ func (c *config) createSymptomLog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (c *config) getSymptomLogs(w http.ResponseWriter, r *http.Request) {
+	// Retrieve claims from context
+	claims, ok := r.Context().Value("User-claims").(map[string]interface{})
+	if !ok {
+		http.Error(w, "Claims not found", http.StatusUnauthorized)
+		return
+	}
+
+	// Extract user info from claims
+	sub, ok := claims["username"].(string)
+	if !ok {
+		http.Error(w, "username claim missing or invalid", http.StatusUnauthorized)
+		return
+	}
+
+	database, err := db.New()
+	if err != nil {
+		http.Error(w, "Failed to connect to database", http.StatusInternalServerError)
+		return
+	}
+	defer database.Close()
+
+	// Get User ID from the database
+	user, err := database.GetUserBySub(sub)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Validate request
+	if user.CognitoSub != sub {
+		http.Error(w, "User ID mismatch", http.StatusBadRequest)
+		return
+	}
+
+	// Get symptom logs from the database
+	symptomLogs, err := database.GetSymptomLogsByUserID(user.ID)
+	if err != nil {
+		http.Error(w, "Failed to get symptom logs", http.StatusInternalServerError)
+		return
+	}
+
+	// Convert the response to JSON
+	jsonData, err := json.Marshal(symptomLogs)
+	if err != nil {
+		http.Error(w, "Failed to serialize symptom logs", http.StatusInternalServerError)
+		return
+	}
+
+	// Send the JSON response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonData)
 }

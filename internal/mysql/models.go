@@ -30,7 +30,7 @@ type SymptomLog struct {
 
 type CompleteUser struct {
 	Email    string   `json:"email"`
-	Tracker  string   `json:"tracker"`
+	Tracker  string   `json:"tracker_name"`
 	Symptoms []string `json:"symptoms"`
 }
 
@@ -41,4 +41,10 @@ type SymptomLogRequestBody struct {
 	Notes            string `json:"notes"`
 	UserID           int    `json:"user_id"`
 	TrackerID        int    `json:"tracker_id"`
+}
+
+type NewTrackerRequestBody struct {
+	TrackerName string   `json:"tracker_name"`
+	Symptoms    []string `json:"symptoms"`
+	UserID      int      `json:"user_id"`
 }

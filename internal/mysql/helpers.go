@@ -58,9 +58,9 @@ func (d *Database) GetUserBySub(cognitoSub string) (User, error) {
 	return user, nil
 }
 
-func (d *Database) GetTrackerByName(trackerName string) (Tracker, error) {
-	query := `SELECT * FROM trackers WHERE tracker_name= ?`
-	row := d.mysql.QueryRow(query, trackerName)
+func (d *Database) GetTrackerByNameAndUserID(trackerName string, userID int) (Tracker, error) {
+	query := `SELECT * FROM trackers WHERE tracker_name= ? AND user_id= ?`
+	row := d.mysql.QueryRow(query, trackerName, userID)
 	var tracker Tracker
 	err := row.Scan(&tracker.ID, &tracker.UserID, &tracker.TrackerName)
 	if err != nil {
@@ -107,4 +107,32 @@ func (d *Database) GetSymptomsByTrackerID(trackerID int) ([]Symptom, error) {
 		symptoms = append(symptoms, symptom)
 	}
 	return symptoms, nil
+}
+
+func (d *Database) GetSymptomLogsByUserID(userID int) ([]SymptomLog, error) {
+	query := `SELECT * FROM symptom_logs WHERE user_id= ?`
+	rows, err := d.mysql.Query(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying symptom logs: %w", err)
+	}
+	defer rows.Close()
+
+	var symptomLogs []SymptomLog
+	for rows.Next() {
+		var symptomLog SymptomLog
+		err := rows.Scan(
+			&symptomLog.ID,
+			&symptomLog.UserID,
+			&symptomLog.TrackerID,
+			&symptomLog.LogTime,
+			&symptomLog.Severity,
+			&symptomLog.Symptoms,
+			&symptomLog.Notes,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning symptom log: %w", err)
+		}
+		symptomLogs = append(symptomLogs, symptomLog)
+	}
+	return symptomLogs, nil
 }
