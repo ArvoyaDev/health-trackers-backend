@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	openai "github.com/ArvoyaDev/symptom-tracker-backend/internal/openai"
+	openai "github.com/ArvoyaDev/health-trackers-backend/internal/openai"
 	_ "github.com/go-sql-driver/mysql"
 )
 

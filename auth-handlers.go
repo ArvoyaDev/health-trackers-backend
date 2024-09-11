@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ArvoyaDev/symptom-tracker-backend/internal/auth"
+	"github.com/ArvoyaDev/health-trackers-backend/internal/auth"
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
 )
 

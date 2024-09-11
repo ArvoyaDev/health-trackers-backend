@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	db "github.com/ArvoyaDev/symptom-tracker-backend/internal/mysql"
+	db "github.com/ArvoyaDev/health-trackers-backend/internal/mysql"
 )
 
 func (c *config) getUser(w http.ResponseWriter, r *http.Request) {
