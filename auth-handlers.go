@@ -328,3 +328,53 @@ func (c *config) SignOut(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
+func (c *config) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	_, err := c.AuthClient.ForgotPassword(
+		context.TODO(),
+		&cognitoidentityprovider.ForgotPasswordInput{
+			ClientId: &c.AuthClient.AppClientID,
+			Username: &req.Email,
+		},
+	)
+	if err != nil {
+		http.Error(w, "Failed to request password reset", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (c *config) ConfirmForgottenPassword(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email            string `json:"email"`
+		ConfirmationCode string `json:"confirmationCode"`
+		Password         string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	_, err := c.AuthClient.ConfirmForgotPassword(
+		context.TODO(),
+		&cognitoidentityprovider.ConfirmForgotPasswordInput{
+			ClientId:         &c.AuthClient.AppClientID,
+			Username:         &req.Email,
+			ConfirmationCode: &req.ConfirmationCode,
+			Password:         &req.Password,
+		},
+	)
+	if err != nil {
+		http.Error(w, "Failed to confirm forgotten password", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

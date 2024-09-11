@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ArvoyaDev/symptom-tracker-backend/internal/auth"
-	db "github.com/ArvoyaDev/symptom-tracker-backend/internal/mysql"
+	"github.com/ArvoyaDev/health-trackers-backend/internal/auth"
+	db "github.com/ArvoyaDev/health-trackers-backend/internal/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -83,6 +83,7 @@ func main() {
 	cognitoMux.HandleFunc("POST /sign-out", config.SignOut)
 	cognitoMux.HandleFunc("POST /request-verification-code", config.RequestVerificationCode)
 	cognitoMux.HandleFunc("POST /sign-in", config.SignIn)
+	cognitoMux.HandleFunc("POST /forgot-password", config.ForgotPassword)
 
 	// Apply CORS middleware
 	corsMux := corsMiddleware(mainMux)
