@@ -32,7 +32,6 @@ func main() {
 	dataSourceName := os.Getenv("AWS_DATABASE_URL")
 	port := os.Getenv("PORT")
 	authClient := auth.Init()
-
 	clientData := db.DBClientData{
 		AwsRegion:   os.Getenv("AWS_REGION"),
 		DbName:      os.Getenv("DATABASE_NAME"),
@@ -51,6 +50,7 @@ func main() {
 	// DB Mux & routes
 	dbMux := http.NewServeMux()
 
+	dbMux.HandleFunc("POST /openai", config.openai)
 	dbMux.HandleFunc("GET /user", config.getUser)
 	dbMux.HandleFunc("POST /make-user", config.createUser)
 	dbMux.HandleFunc("POST /make-tracker", config.createTracker)
@@ -58,7 +58,7 @@ func main() {
 	dbMux.HandleFunc("POST /create-symptom-log", config.createSymptomLog)
 	dbMux.HandleFunc("GET /get-symptom-logs", config.getSymptomLogs)
 
-	mainMux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+	dbMux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		state := os.Getenv("ENV")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(state))
@@ -134,7 +134,6 @@ func rateLimitMiddleware(next http.Handler) http.HandlerFunc {
 			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 			return
 		}
-
 		next.ServeHTTP(w, r)
 	}
 }
