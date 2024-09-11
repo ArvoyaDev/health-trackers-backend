@@ -1,4 +1,4 @@
-module github.com/ArvoyaDev/symptom-tracker-backend
+module github.com/ArvoyaDev/health-trackers-backend
 
 go 1.23.0
 
