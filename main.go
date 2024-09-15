@@ -84,6 +84,7 @@ func main() {
 	cognitoMux.HandleFunc("POST /request-verification-code", config.RequestVerificationCode)
 	cognitoMux.HandleFunc("POST /sign-in", config.SignIn)
 	cognitoMux.HandleFunc("POST /forgot-password", config.ForgotPassword)
+	cognitoMux.HandleFunc("POST /confirm-forgot-password", config.ConfirmForgottenPassword)
 
 	// Apply CORS middleware
 	corsMux := corsMiddleware(mainMux)

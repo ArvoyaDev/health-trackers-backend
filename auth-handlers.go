@@ -337,15 +337,28 @@ func (c *config) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	_, err := c.AuthClient.ForgotPassword(
+
+	secretHash, err := auth.CalculateSecretHash(
+		c.AuthClient.AppClientID,
+		os.Getenv("COGNITO_CLIENT_SECRET"),
+		req.Email,
+	)
+	if err != nil {
+		http.Error(w, "Failed to calculate secret hash", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = c.AuthClient.ForgotPassword(
 		context.TODO(),
 		&cognitoidentityprovider.ForgotPasswordInput{
-			ClientId: &c.AuthClient.AppClientID,
-			Username: &req.Email,
+			ClientId:   &c.AuthClient.AppClientID,
+			Username:   &req.Email,
+			SecretHash: &secretHash,
 		},
 	)
 	if err != nil {
-		http.Error(w, "Failed to request password reset", http.StatusInternalServerError)
+		error := "Failed to request password reset: " + err.Error()
+		http.Error(w, error, http.StatusInternalServerError)
 		return
 	}
 
@@ -362,13 +375,24 @@ func (c *config) ConfirmForgottenPassword(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	_, err := c.AuthClient.ConfirmForgotPassword(
+	secretHash, err := auth.CalculateSecretHash(
+		c.AuthClient.AppClientID,
+		os.Getenv("COGNITO_CLIENT_SECRET"),
+		req.Email,
+	)
+	if err != nil {
+		http.Error(w, "Failed to calculate secret hash", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = c.AuthClient.ConfirmForgotPassword(
 		context.TODO(),
 		&cognitoidentityprovider.ConfirmForgotPasswordInput{
 			ClientId:         &c.AuthClient.AppClientID,
 			Username:         &req.Email,
 			ConfirmationCode: &req.ConfirmationCode,
 			Password:         &req.Password,
+			SecretHash:       &secretHash,
 		},
 	)
 	if err != nil {
